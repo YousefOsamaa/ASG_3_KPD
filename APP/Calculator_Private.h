@@ -1,0 +1,4 @@
+#ifndef CALCULATOR_PRIVATE_FILE
+#define CALCULATOR_PRIVATE_FILE
+
+#endif

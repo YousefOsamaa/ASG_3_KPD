@@ -1,0 +1,4 @@
+#ifndef CALCULATOR_CONFIG_FILE
+#define CALCULATOR_CONFIG_FILE
+
+#endif
