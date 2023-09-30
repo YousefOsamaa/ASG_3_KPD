@@ -65,7 +65,7 @@ extern ErrorState_t LCD_enu_Initialization(void)
 
     //Display ON/OFF control
     DIO_enu_SetPinValue(LCD_RS_GROUP, LCD_RS_PIN, DIO_LOW);
-    enu_PassByteAndLatch(0x0F);
+    enu_PassByteAndLatch(0x0C);
 
     //Display clear
     DIO_enu_SetPinValue(LCD_RS_GROUP, LCD_RS_PIN, DIO_LOW);
