@@ -110,7 +110,6 @@ static ErrorState_t enu_GetUserInput(u8* Copy_pu8_UserInput)
                     //Getting keypressed from keypad
                     Keypad_enu_GetButtonPressedValue(Copy_pu8_UserInput);
 
-
                 }
 
                 //Displaying arithmetic symbol on LCD
@@ -230,9 +229,12 @@ static ErrorState_t enu_CalculateResult(void)
 
         case CALCULATOR_DIVISION_SYMBOL:
         {
-
+            f32 Local_f32_DivisionResult = ((f32)u8_FirstDigit)/u8_SecondDigit;
+            
+            LCD_enu_WriteFloatNum(Local_f32_DivisionResult, LCD_ROW_1, LCD_COLUMN_5, LCD_PAGE_1);
+            
             Local_u8_ErrorFlag = ES_OK;
-
+            
             break;
         }
         case CALCULATOR_MULTIPLICATION_SYMBOL:

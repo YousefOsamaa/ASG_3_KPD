@@ -346,14 +346,16 @@ extern ErrorState_t LCD_enu_WriteIntegerNum(s32 Copy_s32_Num,u8 Copy_u8_Row,u8 C
 
 extern ErrorState_t LCD_enu_WriteFloatNum(f32 Copy_f32_Num, u8 Copy_u8_Row,u8 Copy_u8_Column,u8 Copy_u8_Page)
 {
+  
     u8 Local_u8_ErrorFlag = ES_NOK;
 
     //Temp Variables
     u32 Local_u32_WholeDigits;
     f32 Local_f32_DecimalDigits;
+    u32 Local_u32_TempDecimalDigits;
     //Counters
     u8 Local_u8_WholeDigitCount = 0;
-    u8 Local_u8_DecimalDigitCount = 0;
+    u8 Local_u8_DecimalDigitCount = LCD_FLOAT_PRECISION;
     //Flags
     u8 local_u8_NegativeFlag = False;
 
@@ -364,33 +366,27 @@ extern ErrorState_t LCD_enu_WriteFloatNum(f32 Copy_f32_Num, u8 Copy_u8_Row,u8 Co
         Copy_f32_Num *= -1;
     }
 
+    
 
     Local_u32_WholeDigits = Copy_f32_Num;
 
-    Local_f32_DecimalDigits = Copy_f32_Num - (f32)(Local_u32_WholeDigits);
-   
+    Local_f32_DecimalDigits = Copy_f32_Num - Local_u32_WholeDigits;
+
+
     //Counting whole digits 
     do
     {
         Local_u8_WholeDigitCount++;
+
         Local_u32_WholeDigits  /= 10;
 
     }while(Local_u32_WholeDigits);
 
-    
-    DIO_enu_SetPinValue(LCD_RS_GROUP,LCD_RS_PIN,DIO_HIGH);
-    //Counting decimal digits
-    Local_u32_WholeDigits = 0;
-    while((Local_f32_DecimalDigits - (f32)Local_u32_WholeDigits) >= LCD_FLOAT_ERROR)
-    {
-        Local_f32_DecimalDigits *= 10;
-        Local_u32_WholeDigits = Local_f32_DecimalDigits;
-        Local_u8_DecimalDigitCount++;
-        
-    
-    }
+    //Converting Decimals into Whole numbers ex: 0.451 -> 451
+    enu_ConvertFloatToInteger(&Local_f32_DecimalDigits, LCD_FLOAT_PRECISION);
 
-    if(((Copy_u8_Row >= 1) && (Copy_u8_Row <= 2)) && ((Copy_u8_Column >= 1) && (Copy_u8_Column <= 16))  && (Copy_u8_Page <= LCD_NUMBER_OF_PAGES) && ((Local_u32_WholeDigits + Local_u8_DecimalDigitCount) <= LCD_MAX_INTEGER_LENGTH))
+
+    if(((Copy_u8_Row >= 1) && (Copy_u8_Row <= 2)) && ((Copy_u8_Column >= 1) && (Copy_u8_Column <= 16))  && (Copy_u8_Page <= LCD_NUMBER_OF_PAGES) && (Local_u8_DecimalDigitCount <= LCD_MAX_INTEGER_LENGTH))
     {
         //Choosing IR
         DIO_enu_SetPinValue(LCD_RS_GROUP,LCD_RS_PIN,DIO_LOW);
@@ -398,32 +394,36 @@ extern ErrorState_t LCD_enu_WriteFloatNum(f32 Copy_f32_Num, u8 Copy_u8_Row,u8 Co
         enu_PassByteAndLatch(LCD_FIRST_LINE_BASE_ADDRESS + (Copy_u8_Column - 1) + (LCD_SECOND_LINE_BASE_ADDRESS - LCD_FIRST_LINE_BASE_ADDRESS)*(Copy_u8_Row - 1) + 16*(Copy_u8_Page - 1));    
         
         
-        //Choosing DR
+        //Choosing DR to pass numbers 
         DIO_enu_SetPinValue(LCD_RS_GROUP,LCD_RS_PIN,DIO_HIGH);
+
         //Printing Negative Sign if exists
         if(local_u8_NegativeFlag)
         {
             enu_PassByteAndLatch('-');
         }
 
+
         //A] Printing whole digits 
+
         Local_u32_WholeDigits = Copy_f32_Num;
         enu_ReverseInteger(&Local_u32_WholeDigits);
 
-
-        //Choosing DR
-        DIO_enu_SetPinValue(LCD_RS_GROUP,LCD_RS_PIN,DIO_HIGH);
         //Printing one digit at a time        
         while(Local_u32_WholeDigits)
         {
             enu_PassByteAndLatch((Local_u32_WholeDigits % 10) + 48);
+           
             Local_u32_WholeDigits /= 10;
+           
             Local_u8_WholeDigitCount--;
         }
+
         //Printing any lost zeroes when the number was reversed 
         while(Local_u8_WholeDigitCount)
         {
             enu_PassByteAndLatch('0');
+           
             Local_u8_WholeDigitCount--;
         }
 
@@ -431,23 +431,25 @@ extern ErrorState_t LCD_enu_WriteFloatNum(f32 Copy_f32_Num, u8 Copy_u8_Row,u8 Co
         //B] Printing decimal digits
         if(Local_f32_DecimalDigits)
         {
-            //Choosing DR
-            DIO_enu_SetPinValue(LCD_RS_GROUP,LCD_RS_PIN,DIO_HIGH);
-
             //Printing decimal point only if decimal digit exits
             enu_PassByteAndLatch('.');
 
-            //Reversing Digits (Using Local_u32_Wholedigits for safety) 'u32'
-            Local_u32_WholeDigits = Local_f32_DecimalDigits;
-            enu_ReverseInteger(&Local_u32_WholeDigits);
+            //Saving the float digits in an u32 variable to pass to other functions easily (step for Safety reasons not neaded)
+            Local_u32_TempDecimalDigits = Local_f32_DecimalDigits;
             
-            //Printing one digit at a time 
-            while(Local_u32_WholeDigits)
+            //Reversing Number
+            enu_ReverseInteger(&Local_u32_TempDecimalDigits);
+
+            //Printing one digit at a time
+            while(Local_u8_DecimalDigitCount)
             {
-                enu_PassByteAndLatch((Local_u32_WholeDigits % 10) + 48);
-                Local_u32_WholeDigits /= 10;
+                enu_PassByteAndLatch((Local_u32_TempDecimalDigits % 10) + 48);
+                
+                Local_u32_TempDecimalDigits /= 10;
+                
                 Local_u8_DecimalDigitCount--;
             }
+
             //Printing any lost zeroes when the number was reversed 
             while(Local_u8_DecimalDigitCount)
             {
@@ -455,8 +457,6 @@ extern ErrorState_t LCD_enu_WriteFloatNum(f32 Copy_f32_Num, u8 Copy_u8_Row,u8 Co
                 Local_u8_DecimalDigitCount--;
             }
             
-            
-
         }
 
         Local_u8_ErrorFlag = ES_OK;
@@ -471,6 +471,7 @@ extern ErrorState_t LCD_enu_WriteFloatNum(f32 Copy_f32_Num, u8 Copy_u8_Row,u8 Co
     return Local_u8_ErrorFlag;
 
 }
+
 
 //Local Functions' implementations
 static ErrorState_t enu_PassByteAndLatch(u8 Copy_u8_PassedByte)
@@ -645,6 +646,48 @@ static ErrorState_t enu_ReverseInteger(u32* Copy_pu32_Num)
         *Copy_pu32_Num = Local_u32_ReversedNum;
 
         Local_u8_ErrorFlag = ES_OK;
+    }
+    else
+    {
+        Local_u8_ErrorFlag = ES_NULL_POINTER;
+    }
+
+    return Local_u8_ErrorFlag;
+
+}
+
+static ErrorState_t enu_ConvertFloatToInteger(f32* Copy_f32_DecimalDigits, u8 Copy_u8_FloatPrecision)
+{
+    u8 Local_u8_ErrorFlag = ES_OK;
+    u32 Local_u32_CheckVariable = 0;
+    f32 Local_f32_TempDecimalDigits;
+
+    if(Copy_f32_DecimalDigits)
+    {
+        while((*Copy_f32_DecimalDigits - Local_u32_CheckVariable) || ( Copy_u8_FloatPrecision == 0))
+        {
+            *Copy_f32_DecimalDigits *= 10;
+
+            
+            Local_u32_CheckVariable = (u32)(*Copy_f32_DecimalDigits);
+
+            Copy_u8_FloatPrecision--;
+
+        }
+
+
+        Local_f32_TempDecimalDigits = *Copy_f32_DecimalDigits - Local_u32_CheckVariable;
+        Local_f32_TempDecimalDigits *= 10;
+
+        // First decimal digit is acquired
+        Local_u32_CheckVariable = Local_f32_TempDecimalDigits;
+
+        //Rounding number
+        if(Local_u32_CheckVariable >= 5)
+        {
+            *Copy_f32_DecimalDigits++;
+        }
+
     }
     else
     {
